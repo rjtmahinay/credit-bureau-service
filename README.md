@@ -6,9 +6,9 @@ A RESTful Spring Boot WebFlux API designed for **demonstration purposes with Age
 
 This API serves as a demonstration project showcasing how **Agentic AI tools** can interact with and utilize modern RESTful services. It provides a realistic credit bureau simulation that AI agents can use to:
 
-- Perform credit assessments
-- Retrieve credit scores and history
-- Submit and manage loan applications
+- Perform comprehensive credit assessments
+- Retrieve credit scores and detailed credit history
+- Access loan history for credit evaluation purposes
 - Demonstrate real-world API integration patterns
 
 ## 🚀 Features
@@ -16,7 +16,7 @@ This API serves as a demonstration project showcasing how **Agentic AI tools** c
 - **Reactive Programming**: Built with Spring WebFlux for non-blocking, asynchronous operations
 - **Comprehensive API Documentation**: Interactive Swagger UI with detailed endpoint documentation
 - **Credit Management**: Full credit scoring and history tracking
-- **Loan Processing**: Application submission and status management
+- **Loan History Access**: Read-only access to loan history for credit assessment purposes
 - **In-Memory Database**: H2 database with pre-loaded sample data for immediate testing
 - **Production-Ready**: Includes health checks, metrics, and proper error handling
 
@@ -27,10 +27,8 @@ This API serves as a demonstration project showcasing how **Agentic AI tools** c
 - `GET /api/v1/credit/score/{ssn}` - Get credit score by SSN
 - `GET /api/v1/credit/history/{ssn}` - Get credit history by SSN
 
-### Loan Operations
-- `POST /api/v1/credit/loan/apply` - Submit loan application
-- `GET /api/v1/credit/loan/applications/{ssn}` - Get all loan applications by SSN
-- `GET /api/v1/credit/loan/application/{applicationId}` - Get specific loan application
+### Loan History (Read-Only for Credit Assessment)
+- `GET /api/v1/credit/loan-history/{ssn}` - Get loan history for credit evaluation purposes
 
 ### System Operations
 - `GET /actuator/health` - Health check endpoint
@@ -174,15 +172,19 @@ curl http://localhost:8080/actuator/health
 # Get credit score
 curl http://localhost:8080/api/v1/credit/score/123-45-6789
 
-# Submit loan application
-curl -X POST http://localhost:8080/api/v1/credit/loan/apply \
+# Get credit history
+curl http://localhost:8080/api/v1/credit/history/123-45-6789
+
+# Get loan history for credit assessment
+curl http://localhost:8080/api/v1/credit/loan-history/123-45-6789
+
+# Perform comprehensive credit check
+curl -X POST http://localhost:8080/api/v1/credit/check \
   -H "Content-Type: application/json" \
   -d '{
     "ssn": "123-45-6789",
     "firstName": "John",
     "lastName": "Doe",
-    "email": "john.doe@example.com",
-    "phone": "555-0101",
     "requestedAmount": 25000,
     "loanType": "AUTO",
     "termMonths": 60,

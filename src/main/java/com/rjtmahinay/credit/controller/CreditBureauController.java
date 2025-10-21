@@ -93,64 +93,18 @@ public class CreditBureauController {
     }
     
     @Operation(
-        summary = "Submit Loan Application",
-        description = "Submits a new loan application based on credit check request data"
+        summary = "Get Loan History by SSN",
+        description = "Retrieves loan history for credit assessment purposes (read-only for credit evaluation)"
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "201", description = "Loan application submitted successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LoanApplication.class))),
-        @ApiResponse(responseCode = "500", description = "Internal server error during loan application submission")
-    })
-    @PostMapping("/loan/apply")
-    public Mono<ResponseEntity<LoanApplication>> submitLoanApplication(
-        @Parameter(description = "Credit check request containing applicant details", required = true)
-        @RequestBody CreditCheckRequest request) {
-        log.info("Submitting loan application for SSN: {}", request.getSsn());
-        
-        return creditBureauService.submitLoanApplication(request)
-                .map(application -> ResponseEntity.status(HttpStatus.CREATED).body(application))
-                .onErrorResume(error -> {
-                    log.error("Error submitting loan application", error);
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
-                });
-    }
-    
-    @Operation(
-        summary = "Get Loan Applications by SSN",
-        description = "Retrieves all loan applications for a specific SSN"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Loan applications retrieved successfully",
+        @ApiResponse(responseCode = "200", description = "Loan history retrieved successfully",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = LoanApplication.class)))
     })
-    @GetMapping("/loan/applications/{ssn}")
-    public Flux<LoanApplication> getLoanApplications(
+    @GetMapping("/loan-history/{ssn}")
+    public Flux<LoanApplication> getLoanHistory(
         @Parameter(description = "Social Security Number", required = true, example = "123-45-6789")
         @PathVariable String ssn) {
-        log.info("Fetching loan applications for SSN: {}", ssn);
+        log.info("Fetching loan history for credit assessment - SSN: {}", ssn);
         return creditBureauService.getLoanApplicationsBySSN(ssn);
-    }
-    
-    @Operation(
-        summary = "Get Loan Application by ID",
-        description = "Retrieves a specific loan application by its unique application ID"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Loan application found successfully",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = LoanApplication.class))),
-        @ApiResponse(responseCode = "404", description = "Loan application not found for the given application ID")
-    })
-    @GetMapping("/loan/application/{applicationId}")
-    public Mono<ResponseEntity<LoanApplication>> getLoanApplication(
-        @Parameter(description = "Unique loan application identifier", required = true, example = "APP-12345")
-        @PathVariable String applicationId) {
-        log.info("Fetching loan application: {}", applicationId);
-        
-        return creditBureauService.getLoanApplicationById(applicationId)
-                .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    log.error("Loan application not found: {}", applicationId, error);
-                    return Mono.just(ResponseEntity.notFound().build());
-                });
     }
 }

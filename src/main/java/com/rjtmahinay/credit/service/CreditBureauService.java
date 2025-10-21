@@ -41,29 +41,6 @@ public class CreditBureauService {
                 );
     }
     
-    public Mono<LoanApplication> submitLoanApplication(CreditCheckRequest request) {
-        log.info("Submitting loan application for SSN: {}", request.getSsn());
-        
-        return performCreditCheck(request)
-                .flatMap(creditResponse -> {
-                    LoanApplication application = LoanApplication.builder()
-                            .applicationId(UUID.randomUUID().toString())
-                            .ssn(request.getSsn())
-                            .firstName(request.getFirstName())
-                            .lastName(request.getLastName())
-                            .requestedAmount(request.getRequestedAmount())
-                            .loanType(request.getLoanType())
-                            .termMonths(request.getTermMonths())
-                            .annualIncome(request.getAnnualIncome())
-                            .employmentStatus(request.getEmploymentStatus())
-                            .status(creditResponse.getDecision())
-                            .rejectionReason(creditResponse.getRejectionReason())
-                            .applicationDate(LocalDateTime.now())
-                            .build();
-                    
-                    return loanApplicationRepository.save(application);
-                });
-    }
     
     public Mono<CreditScore> getCreditScoreBySSN(String ssn) {
         return creditScoreRepository.findBySsn(ssn)
