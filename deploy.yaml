@@ -1,0 +1,38 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: credit-bureau-java
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: credit-bureau-java-app
+  template:
+    metadata:
+      labels:
+        app: credit-bureau-java-app
+    spec:
+      containers:
+        - name: credit-bureau-java
+          image: credit-bureau-java-image:latest
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          resources:
+            requests:
+              memory: "300Mi"
+              cpu: "50m"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: credit-bureau-java-svc
+spec:
+  ports:
+    - name: http-8081
+      port: 8081
+      protocol: TCP
+      targetPort: 8081
+  selector:
+    app: credit-bureau-java-app

@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: credit-bureau-service
+  # R2DBC Configuration (H2 in-memory database for demo)
+  r2dbc:
+    url: r2dbc:h2:mem:///creditdb?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+
+# Server Configuration
+server:
+  port: 8080
+
+# Logging Configuration
+logging:
+  level:
+    com.rjtmahinay.credit: INFO
+    org.springframework.r2dbc: DEBUG
+
+# Management endpoints for Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Application Info
+info:
+  app:
+    name: Credit Bureau Service
+    description: RESTful API for credit checks and loan applications
+    version: 1.0.0
