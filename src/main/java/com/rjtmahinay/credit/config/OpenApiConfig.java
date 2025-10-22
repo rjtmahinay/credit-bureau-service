@@ -29,8 +29,8 @@ public class OpenApiConfig {
                                 .url("https://opensource.org/licenses/MIT")))
                 .servers(List.of(
                         new Server()
-                                .url("http://localhost:8080")
-                                .description("Development server")
+                                .url("https://credit-bureau-service-git-rjtmahinay-dev.apps.rm1.0a51.p1.openshiftapps.com")
+                                .description("Demo Server")
                 ));
     }
 
