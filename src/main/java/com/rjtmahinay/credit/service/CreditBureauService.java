@@ -2,6 +2,8 @@ package com.rjtmahinay.credit.service;
 
 import com.rjtmahinay.credit.dto.CreditCheckRequest;
 import com.rjtmahinay.credit.dto.CreditCheckResponse;
+import com.rjtmahinay.credit.dto.CreateCreditScoreRequest;
+import com.rjtmahinay.credit.dto.CreateCreditHistoryRequest;
 import com.rjtmahinay.credit.model.CreditHistory;
 import com.rjtmahinay.credit.model.CreditScore;
 import com.rjtmahinay.credit.model.LoanApplication;
@@ -24,47 +26,102 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class CreditBureauService {
-    
+
     private final CreditScoreRepository creditScoreRepository;
     private final CreditHistoryRepository creditHistoryRepository;
     private final LoanApplicationRepository loanApplicationRepository;
-    
+
     public Mono<CreditCheckResponse> performCreditCheck(CreditCheckRequest request) {
         log.info("Performing credit check for SSN: {}", request.getSsn());
-        
+
         return creditScoreRepository.findBySsn(request.getSsn())
                 .switchIfEmpty(generateMockCreditScore(request))
-                .flatMap(creditScore -> 
-                    creditHistoryRepository.findActiveAccountsBySsn(request.getSsn())
-                            .collectList()
-                            .map(history -> buildCreditCheckResponse(creditScore, history, request))
-                );
+                .flatMap(creditScore -> creditHistoryRepository.findActiveAccountsBySsn(request.getSsn())
+                        .collectList()
+                        .map(history -> buildCreditCheckResponse(creditScore, history, request)));
     }
-    
-    
+
     public Mono<CreditScore> getCreditScoreBySSN(String ssn) {
         return creditScoreRepository.findBySsn(ssn)
                 .switchIfEmpty(Mono.error(new RuntimeException("Credit score not found for SSN: " + ssn)));
     }
-    
+
     public Flux<CreditHistory> getCreditHistoryBySSN(String ssn) {
         return creditHistoryRepository.findBySsn(ssn);
     }
-    
-    public Flux<LoanApplication> getLoanApplicationsBySSN(String ssn) {
-        return loanApplicationRepository.findBySsn(ssn);
+
+    public Mono<CreditScore> createCreditScore(CreateCreditScoreRequest request) {
+        log.info("Creating credit score for SSN: {}", request.getSsn());
+
+        // Check if credit score already exists for this SSN
+        return creditScoreRepository.findBySsn(request.getSsn())
+                .flatMap(existingScore -> {
+                    log.warn("Credit score already exists for SSN: {}, updating existing record", request.getSsn());
+                    return updateExistingCreditScore(existingScore, request);
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    // Create new credit score
+                    String riskLevel = request.getRiskLevel() != null ? request.getRiskLevel()
+                            : determineRiskLevel(request.getScore());
+
+                    CreditScore creditScore = CreditScore.builder()
+                            .ssn(request.getSsn())
+                            .firstName(request.getFirstName())
+                            .lastName(request.getLastName())
+                            .score(request.getScore())
+                            .riskLevel(riskLevel)
+                            .createdAt(LocalDateTime.now())
+                            .lastUpdated(LocalDateTime.now())
+                            .build();
+
+                    return creditScoreRepository.save(creditScore);
+                }));
     }
-    
-    public Mono<LoanApplication> getLoanApplicationById(String applicationId) {
-        return loanApplicationRepository.findByApplicationId(applicationId)
-                .switchIfEmpty(Mono.error(new RuntimeException("Loan application not found: " + applicationId)));
+
+    public Mono<CreditHistory> createCreditHistory(CreateCreditHistoryRequest request) {
+        log.info("Creating credit history for SSN: {}", request.getSsn());
+
+        CreditHistory creditHistory = CreditHistory.builder()
+                .ssn(request.getSsn())
+                .accountType(request.getAccountType())
+                .creditorName(request.getCreditorName())
+                .originalAmount(request.getOriginalAmount())
+                .currentBalance(request.getCurrentBalance())
+                .creditLimit(request.getCreditLimit())
+                .paymentStatus(request.getPaymentStatus())
+                .daysLate(request.getDaysLate() != null ? request.getDaysLate() : 0)
+                .accountOpenDate(request.getAccountOpenDate())
+                .lastPaymentDate(request.getLastPaymentDate())
+                .reportedDate(LocalDateTime.now())
+                .isActive(request.getIsActive() != null ? request.getIsActive() : true)
+                .build();
+
+        return creditHistoryRepository.save(creditHistory);
     }
-    
+
+    private Mono<CreditScore> updateExistingCreditScore(CreditScore existingScore, CreateCreditScoreRequest request) {
+        String riskLevel = request.getRiskLevel() != null ? request.getRiskLevel()
+                : determineRiskLevel(request.getScore());
+
+        CreditScore updatedScore = CreditScore.builder()
+                .id(existingScore.getId())
+                .ssn(existingScore.getSsn())
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .score(request.getScore())
+                .riskLevel(riskLevel)
+                .createdAt(existingScore.getCreatedAt())
+                .lastUpdated(LocalDateTime.now())
+                .build();
+
+        return creditScoreRepository.save(updatedScore);
+    }
+
     private Mono<CreditScore> generateMockCreditScore(CreditCheckRequest request) {
         // Generate a mock credit score for demo purposes
-        int mockScore = 300 + (int)(Math.random() * 550); // Random score between 300-850
+        int mockScore = 300 + (int) (Math.random() * 550); // Random score between 300-850
         String riskLevel = determineRiskLevel(mockScore);
-        
+
         CreditScore creditScore = CreditScore.builder()
                 .ssn(request.getSsn())
                 .firstName(request.getFirstName())
@@ -74,15 +131,16 @@ public class CreditBureauService {
                 .lastUpdated(LocalDateTime.now())
                 .createdAt(LocalDateTime.now())
                 .build();
-                
+
         return creditScoreRepository.save(creditScore);
     }
-    
-    private CreditCheckResponse buildCreditCheckResponse(CreditScore creditScore, List<CreditHistory> history, CreditCheckRequest request) {
+
+    private CreditCheckResponse buildCreditCheckResponse(CreditScore creditScore, List<CreditHistory> history,
+            CreditCheckRequest request) {
         String decision = makeDecision(creditScore, history, request);
         BigDecimal approvedAmount = calculateApprovedAmount(creditScore, request);
         BigDecimal interestRate = calculateInterestRate(creditScore, request);
-        
+
         List<CreditCheckResponse.CreditHistorySummary> historySummary = history.stream()
                 .map(h -> CreditCheckResponse.CreditHistorySummary.builder()
                         .accountType(h.getAccountType())
@@ -92,7 +150,7 @@ public class CreditBureauService {
                         .daysLate(h.getDaysLate())
                         .build())
                 .toList();
-        
+
         return CreditCheckResponse.builder()
                 .ssn(creditScore.getSsn())
                 .firstName(creditScore.getFirstName())
@@ -108,10 +166,10 @@ public class CreditBureauService {
                 .checkDate(LocalDateTime.now())
                 .build();
     }
-    
+
     private String makeDecision(CreditScore creditScore, List<CreditHistory> history, CreditCheckRequest request) {
         int score = creditScore.getScore();
-        
+
         // Basic decision logic
         if (score >= 700) {
             return "APPROVED";
@@ -127,11 +185,11 @@ public class CreditBureauService {
             return "REJECTED";
         }
     }
-    
+
     private BigDecimal calculateApprovedAmount(CreditScore creditScore, CreditCheckRequest request) {
         BigDecimal requestedAmount = request.getRequestedAmount();
         int score = creditScore.getScore();
-        
+
         if (score >= 750) {
             return requestedAmount; // Approve full amount
         } else if (score >= 700) {
@@ -144,10 +202,10 @@ public class CreditBureauService {
             return BigDecimal.ZERO; // Rejected
         }
     }
-    
+
     private BigDecimal calculateInterestRate(CreditScore creditScore, CreditCheckRequest request) {
         int score = creditScore.getScore();
-        
+
         if (score >= 750) {
             return new BigDecimal("3.5");
         } else if (score >= 700) {
@@ -160,7 +218,7 @@ public class CreditBureauService {
             return new BigDecimal("18.0");
         }
     }
-    
+
     private String determineRiskLevel(int score) {
         if (score >= 700) {
             return "LOW";
@@ -170,29 +228,30 @@ public class CreditBureauService {
             return "HIGH";
         }
     }
-    
+
     private BigDecimal calculateDebtToIncomeRatio(List<CreditHistory> history, CreditCheckRequest request) {
         BigDecimal totalDebt = history.stream()
                 .filter(h -> h.getCurrentBalance() != null)
                 .map(CreditHistory::getCurrentBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-                
-        return totalDebt.divide(request.getAnnualIncome().divide(new BigDecimal("12"), RoundingMode.HALF_UP), 2, RoundingMode.HALF_UP);
+
+        return totalDebt.divide(request.getAnnualIncome().divide(new BigDecimal("12"), RoundingMode.HALF_UP), 2,
+                RoundingMode.HALF_UP);
     }
-    
+
     private String generateRejectionReason(CreditScore creditScore, List<CreditHistory> history) {
         if (creditScore.getScore() < 500) {
             return "Credit score too low";
         }
-        
+
         long negativeAccounts = history.stream()
                 .filter(h -> !"CURRENT".equals(h.getPaymentStatus()))
                 .count();
-                
+
         if (negativeAccounts > 2) {
             return "Too many delinquent accounts";
         }
-        
+
         return "Credit profile does not meet lending criteria";
     }
 }
