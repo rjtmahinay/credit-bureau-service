@@ -4,6 +4,8 @@ import com.rjtmahinay.credit.dto.CreditCheckRequest;
 import com.rjtmahinay.credit.dto.CreditCheckResponse;
 import com.rjtmahinay.credit.dto.CreateCreditScoreRequest;
 import com.rjtmahinay.credit.dto.CreateCreditHistoryRequest;
+import com.rjtmahinay.credit.dto.UpdateCreditScoreRequest;
+import com.rjtmahinay.credit.dto.UpdateCreditHistoryRequest;
 import com.rjtmahinay.credit.model.CreditHistory;
 import com.rjtmahinay.credit.model.CreditScore;
 import com.rjtmahinay.credit.service.CreditBureauService;
@@ -115,6 +117,56 @@ public class CreditBureauController {
                                 .map(creditHistory -> ResponseEntity.status(HttpStatus.CREATED).body(creditHistory))
                                 .onErrorResume(error -> {
                                         log.error("Error creating credit history for SSN: {}", request.getSsn(), error);
+                                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                                        .build());
+                                });
+        }
+
+        @Operation(summary = "Update Credit Score", description = "Updates an existing credit score record for a given SSN")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Credit score updated successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreditScore.class))),
+                        @ApiResponse(responseCode = "404", description = "Credit score not found for the given SSN"),
+                        @ApiResponse(responseCode = "400", description = "Invalid request data"),
+                        @ApiResponse(responseCode = "500", description = "Internal server error during credit score update")
+        })
+        @PutMapping("/score/{ssn}")
+        public Mono<ResponseEntity<CreditScore>> updateCreditScore(
+                        @Parameter(description = "Social Security Number", required = true, example = "123-45-6789") @PathVariable String ssn,
+                        @Parameter(description = "Credit score update request", required = true) @RequestBody UpdateCreditScoreRequest request) {
+                log.info("Updating credit score for SSN: {}", ssn);
+
+                return creditBureauService.updateCreditScore(ssn, request)
+                                .map(ResponseEntity::ok)
+                                .onErrorResume(error -> {
+                                        log.error("Error updating credit score for SSN: {}", ssn, error);
+                                        if (error.getMessage().contains("not found")) {
+                                                return Mono.just(ResponseEntity.notFound().build());
+                                        }
+                                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                                        .build());
+                                });
+        }
+
+        @Operation(summary = "Update Credit History", description = "Updates an existing credit history record by ID")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Credit history updated successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreditHistory.class))),
+                        @ApiResponse(responseCode = "404", description = "Credit history record not found"),
+                        @ApiResponse(responseCode = "400", description = "Invalid request data"),
+                        @ApiResponse(responseCode = "500", description = "Internal server error during credit history update")
+        })
+        @PutMapping("/history/{id}")
+        public Mono<ResponseEntity<CreditHistory>> updateCreditHistory(
+                        @Parameter(description = "Credit history record ID", required = true, example = "1") @PathVariable Long id,
+                        @Parameter(description = "Credit history update request", required = true) @RequestBody UpdateCreditHistoryRequest request) {
+                log.info("Updating credit history record with ID: {}", id);
+
+                return creditBureauService.updateCreditHistory(id, request)
+                                .map(ResponseEntity::ok)
+                                .onErrorResume(error -> {
+                                        log.error("Error updating credit history with ID: {}", id, error);
+                                        if (error.getMessage().contains("not found")) {
+                                                return Mono.just(ResponseEntity.notFound().build());
+                                        }
                                         return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                                                         .build());
                                 });

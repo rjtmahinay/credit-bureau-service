@@ -4,6 +4,8 @@ import com.rjtmahinay.credit.dto.CreditCheckRequest;
 import com.rjtmahinay.credit.dto.CreditCheckResponse;
 import com.rjtmahinay.credit.dto.CreateCreditScoreRequest;
 import com.rjtmahinay.credit.dto.CreateCreditHistoryRequest;
+import com.rjtmahinay.credit.dto.UpdateCreditScoreRequest;
+import com.rjtmahinay.credit.dto.UpdateCreditHistoryRequest;
 import com.rjtmahinay.credit.model.CreditHistory;
 import com.rjtmahinay.credit.model.CreditScore;
 import com.rjtmahinay.credit.model.LoanApplication;
@@ -97,6 +99,69 @@ public class CreditBureauService {
                 .build();
 
         return creditHistoryRepository.save(creditHistory);
+    }
+
+    public Mono<CreditScore> updateCreditScore(String ssn, UpdateCreditScoreRequest request) {
+        log.info("Updating credit score for SSN: {}", ssn);
+
+        return creditScoreRepository.findBySsn(ssn)
+                .switchIfEmpty(Mono.error(new RuntimeException("Credit score not found for SSN: " + ssn)))
+                .flatMap(existingScore -> {
+                    String riskLevel = request.getRiskLevel() != null ? request.getRiskLevel()
+                            : (request.getScore() != null ? determineRiskLevel(request.getScore())
+                                    : existingScore.getRiskLevel());
+
+                    CreditScore updatedScore = CreditScore.builder()
+                            .id(existingScore.getId())
+                            .ssn(existingScore.getSsn())
+                            .firstName(request.getFirstName() != null ? request.getFirstName()
+                                    : existingScore.getFirstName())
+                            .lastName(
+                                    request.getLastName() != null ? request.getLastName() : existingScore.getLastName())
+                            .score(request.getScore() != null ? request.getScore() : existingScore.getScore())
+                            .riskLevel(riskLevel)
+                            .createdAt(existingScore.getCreatedAt())
+                            .lastUpdated(LocalDateTime.now())
+                            .build();
+
+                    return creditScoreRepository.save(updatedScore);
+                });
+    }
+
+    public Mono<CreditHistory> updateCreditHistory(Long id, UpdateCreditHistoryRequest request) {
+        log.info("Updating credit history record with ID: {}", id);
+
+        return creditHistoryRepository.findById(id)
+                .switchIfEmpty(Mono.error(new RuntimeException("Credit history record not found with ID: " + id)))
+                .flatMap(existingHistory -> {
+                    CreditHistory updatedHistory = CreditHistory.builder()
+                            .id(existingHistory.getId())
+                            .ssn(existingHistory.getSsn())
+                            .accountType(request.getAccountType() != null ? request.getAccountType()
+                                    : existingHistory.getAccountType())
+                            .creditorName(request.getCreditorName() != null ? request.getCreditorName()
+                                    : existingHistory.getCreditorName())
+                            .originalAmount(request.getOriginalAmount() != null ? request.getOriginalAmount()
+                                    : existingHistory.getOriginalAmount())
+                            .currentBalance(request.getCurrentBalance() != null ? request.getCurrentBalance()
+                                    : existingHistory.getCurrentBalance())
+                            .creditLimit(request.getCreditLimit() != null ? request.getCreditLimit()
+                                    : existingHistory.getCreditLimit())
+                            .paymentStatus(request.getPaymentStatus() != null ? request.getPaymentStatus()
+                                    : existingHistory.getPaymentStatus())
+                            .daysLate(request.getDaysLate() != null ? request.getDaysLate()
+                                    : existingHistory.getDaysLate())
+                            .accountOpenDate(request.getAccountOpenDate() != null ? request.getAccountOpenDate()
+                                    : existingHistory.getAccountOpenDate())
+                            .lastPaymentDate(request.getLastPaymentDate() != null ? request.getLastPaymentDate()
+                                    : existingHistory.getLastPaymentDate())
+                            .reportedDate(LocalDateTime.now())
+                            .isActive(request.getIsActive() != null ? request.getIsActive()
+                                    : existingHistory.getIsActive())
+                            .build();
+
+                    return creditHistoryRepository.save(updatedHistory);
+                });
     }
 
     private Mono<CreditScore> updateExistingCreditScore(CreditScore existingScore, CreateCreditScoreRequest request) {
