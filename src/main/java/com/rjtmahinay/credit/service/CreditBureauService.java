@@ -8,10 +8,8 @@ import com.rjtmahinay.credit.dto.UpdateCreditScoreRequest;
 import com.rjtmahinay.credit.dto.UpdateCreditHistoryRequest;
 import com.rjtmahinay.credit.model.CreditHistory;
 import com.rjtmahinay.credit.model.CreditScore;
-import com.rjtmahinay.credit.model.LoanApplication;
 import com.rjtmahinay.credit.repository.CreditHistoryRepository;
 import com.rjtmahinay.credit.repository.CreditScoreRepository;
-import com.rjtmahinay.credit.repository.LoanApplicationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,7 +29,6 @@ public class CreditBureauService {
 
     private final CreditScoreRepository creditScoreRepository;
     private final CreditHistoryRepository creditHistoryRepository;
-    private final LoanApplicationRepository loanApplicationRepository;
 
     public Mono<CreditCheckResponse> performCreditCheck(CreditCheckRequest request) {
         log.info("Performing credit check for SSN: {}", request.getSsn());
